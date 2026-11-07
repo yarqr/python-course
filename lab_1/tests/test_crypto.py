@@ -6,7 +6,6 @@ from cryptography.fernet import Fernet, InvalidToken
 from pwmanager.crypto import (
     EntryPassword,
     MasterPassword,
-    SaltTag,
     generate_password,
     generate_salt,
 )
@@ -42,26 +41,25 @@ def salt() -> bytes:
     return generate_salt()
 
 
-def test_derive_hash(master_password: MasterPassword, salt: bytes) -> None:
-    hash_ = master_password.derive_hash(salt, SaltTag.VERIFICATION)
-    hash_same_salt = master_password.derive_hash(salt, SaltTag.VERIFICATION)
-    assert compare_digest(hash_, hash_same_salt) is True
+def test_create_credentials(master_password: MasterPassword, salt: bytes) -> None:
+    credentials = master_password.create_credentials(salt)
+    assert credentials.salt == salt
 
-    hash_different_salt = master_password.derive_hash(
-        generate_salt(), SaltTag.VERIFICATION
+    same_credentials = master_password.create_credentials(salt)
+    assert compare_digest(credentials.password_hash, same_credentials.password_hash)
+
+    different_credentials = master_password.create_credentials(generate_salt())
+    assert not compare_digest(
+        credentials.password_hash, different_credentials.password_hash
     )
-    assert compare_digest(hash_, hash_different_salt) is False
-
-    hash_different_tag = master_password.derive_hash(salt, SaltTag.ENCRYPTION)
-    assert compare_digest(hash_, hash_different_tag) is False
 
 
-def test_compare_with_hash(master_password: MasterPassword, salt: bytes) -> None:
-    expected_hash = master_password.derive_hash(salt, SaltTag.VERIFICATION)
-    assert master_password.compare_with_hash(expected_hash, salt) is True
+def test_compare(master_password: MasterPassword, salt: bytes) -> None:
+    credentials = master_password.create_credentials(salt)
+    assert master_password.compare(credentials)
 
-    incorrect_hash = MasterPassword("incorrect_password")
-    assert incorrect_hash.compare_with_hash(expected_hash, salt) is False
+    incorrect_password = MasterPassword("incorrect_password")
+    assert not incorrect_password.compare(credentials)
 
 
 def test_derive_key(master_password: MasterPassword, salt: bytes) -> None:
@@ -70,6 +68,9 @@ def test_derive_key(master_password: MasterPassword, salt: bytes) -> None:
 
     key_same_salt = master_password.derive_key(salt)
     assert key == key_same_salt
+
+    key_another_salt = master_password.derive_key(generate_salt())
+    assert key != key_another_salt
 
 
 @pytest.fixture
@@ -86,8 +87,8 @@ def test_entry_encrypt(encryption_key: bytes) -> None:
 def test_entry_decrypt(encryption_key: bytes) -> None:
     original = "secret"
     entry = EntryPassword(unencrypted=original)
-    entry.encrypted = entry.encrypt(encryption_key)
-    assert entry.decrypt(encryption_key) == original
+    encrypted_entry = EntryPassword(encrypted=entry.encrypt(encryption_key))
+    assert encrypted_entry.decrypt(encryption_key) == original
 
 
 def test_entry_different_encryption(encryption_key: bytes) -> None:
@@ -97,11 +98,11 @@ def test_entry_different_encryption(encryption_key: bytes) -> None:
 
 def test_entry_decrypt_wrong_key(encryption_key: bytes) -> None:
     entry = EntryPassword(unencrypted="secret")
-    entry.encrypted = entry.encrypt(encryption_key)
+    encrypted_entry = EntryPassword(encrypted=entry.encrypt(encryption_key))
 
     another_key = MasterPassword("another").derive_key(generate_salt())
     with pytest.raises(InvalidToken):
-        entry.decrypt(another_key)
+        encrypted_entry.decrypt(another_key)
 
 
 def test_entry_invalid_data(encryption_key: bytes) -> None:
