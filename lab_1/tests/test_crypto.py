@@ -4,7 +4,7 @@ import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
 from pwmanager.crypto import (
-    Entry,
+    EntryPassword,
     MasterPassword,
     SaltTag,
     generate_password,
@@ -79,24 +79,24 @@ def encryption_key(master_password: MasterPassword, salt: bytes) -> bytes:
 
 def test_entry_encrypt(encryption_key: bytes) -> None:
     original = "secret"
-    entry = Entry(unencrypted=original)
+    entry = EntryPassword(unencrypted=original)
     assert entry.encrypt(encryption_key) != original.encode()
 
 
 def test_entry_decrypt(encryption_key: bytes) -> None:
     original = "secret"
-    entry = Entry(unencrypted=original)
+    entry = EntryPassword(unencrypted=original)
     entry.encrypted = entry.encrypt(encryption_key)
     assert entry.decrypt(encryption_key) == original
 
 
 def test_entry_different_encryption(encryption_key: bytes) -> None:
-    entry = Entry(unencrypted="secret")
+    entry = EntryPassword(unencrypted="secret")
     assert entry.encrypt(encryption_key) != entry.encrypt(encryption_key)
 
 
 def test_entry_decrypt_wrong_key(encryption_key: bytes) -> None:
-    entry = Entry(unencrypted="secret")
+    entry = EntryPassword(unencrypted="secret")
     entry.encrypted = entry.encrypt(encryption_key)
 
     another_key = MasterPassword("another").derive_key(generate_salt())
@@ -105,13 +105,13 @@ def test_entry_decrypt_wrong_key(encryption_key: bytes) -> None:
 
 
 def test_entry_invalid_data(encryption_key: bytes) -> None:
-    entry = Entry(encrypted=b"invalid data")
+    entry = EntryPassword(encrypted=b"invalid data")
     with pytest.raises(InvalidToken):
         entry.decrypt(encryption_key)
 
 
 def test_entry_empty_values(encryption_key: bytes) -> None:
-    entry = Entry()
+    entry = EntryPassword()
     with pytest.raises(ValueError):
         entry.encrypt(encryption_key)
     with pytest.raises(ValueError):

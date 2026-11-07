@@ -57,7 +57,7 @@ class MasterPassword:
 
 
 @dataclass(kw_only=True)
-class Entry:
+class EntryPassword:
     unencrypted: str | None = None
     encrypted: bytes | None = None
 
