@@ -2,13 +2,12 @@ from secrets import compare_digest
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
-
 from pwmanager.crypto import (
-    generate_salt,
-    generate_password,
+    Entry,
     MasterPassword,
     SaltTag,
-    Entry,
+    generate_password,
+    generate_salt,
 )
 
 
