@@ -7,4 +7,4 @@ class Solution:
         nums.sort()
         for i in range(len(nums) + 1):
             ans.extend(combinations(nums, i))
-        return list(map(lambda x: list(x), set(ans)))
+        return [list(x) for x in set(ans)]
