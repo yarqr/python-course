@@ -29,11 +29,18 @@ class SaltTag(Enum):
     ENCRYPTION = "encryption"
 
 
-@dataclass
+@dataclass(frozen=True)
+class PasswordCredentials:
+    password_hash: bytes
+    salt: bytes
+    iterations: int = ITERATIONS
+
+
+@dataclass(frozen=True)
 class MasterPassword:
     original_value: str
 
-    def derive_hash(
+    def _derive_hash(
         self, salt: bytes, salt_tag: SaltTag, iterations: int = ITERATIONS
     ) -> bytes:
         return hashlib.pbkdf2_hmac(
@@ -43,20 +50,30 @@ class MasterPassword:
             iterations,
         )
 
-    def compare_with_hash(
-        self, expected_hash: bytes, salt: bytes, iterations: int = ITERATIONS
-    ) -> bool:
+    def create_credentials(
+        self, salt: bytes | None = None, iterations: int = ITERATIONS
+    ) -> PasswordCredentials:
+        if salt is None:
+            salt = generate_salt()
+        return PasswordCredentials(
+            self._derive_hash(salt, SaltTag.VERIFICATION, iterations), salt, iterations
+        )
+
+    def compare(self, credentials: PasswordCredentials) -> bool:
         return secrets.compare_digest(
-            self.derive_hash(salt, SaltTag.VERIFICATION, iterations), expected_hash
+            self._derive_hash(
+                credentials.salt, SaltTag.VERIFICATION, credentials.iterations
+            ),
+            credentials.password_hash,
         )
 
     def derive_key(self, salt: bytes, iterations: int = ITERATIONS) -> bytes:
         return base64.urlsafe_b64encode(
-            self.derive_hash(salt, SaltTag.ENCRYPTION, iterations)
+            self._derive_hash(salt, SaltTag.ENCRYPTION, iterations)
         )
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, kw_only=True)
 class EntryPassword:
     unencrypted: str | None = None
     encrypted: bytes | None = None
