@@ -2,6 +2,7 @@ from secrets import compare_digest
 
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
+
 from pwmanager.crypto import (
     Entry,
     MasterPassword,
