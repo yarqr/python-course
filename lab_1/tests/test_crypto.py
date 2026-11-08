@@ -4,14 +4,16 @@ import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
 from pwmanager.crypto import (
+    MINIMAL_SALT_LENGTH,
     EntryPassword,
     MasterPassword,
+    PasswordCredentials,
     generate_password,
     generate_salt,
 )
 
 
-@pytest.mark.parametrize("length", [-5, 0])
+@pytest.mark.parametrize("length", [-777, 0, MINIMAL_SALT_LENGTH - 1])
 def test_incorrect_salt_length(length: int) -> None:
     with pytest.raises(ValueError):
         generate_salt(length)
@@ -21,14 +23,24 @@ def test_salt_generate_random() -> None:
     assert generate_salt() != generate_salt()
 
 
-@pytest.mark.parametrize("length", [-5, 0])
+@pytest.mark.parametrize("length", [-777, 0])
 def test_incorrect_generate_password_length(length: int) -> None:
     with pytest.raises(ValueError):
         generate_password(length)
 
 
-def test_password_generate_random() -> None:
+@pytest.mark.parametrize("length", [100, 777])
+def test_generate_password_length(length: int) -> None:
+    assert len(generate_password(length)) == length
+
+
+def test_password_generate_random_password() -> None:
     assert generate_password() != generate_password()
+
+
+def test_empty_master_password() -> None:
+    with pytest.raises(ValueError):
+        MasterPassword("")
 
 
 @pytest.fixture
@@ -73,6 +85,16 @@ def test_derive_key(master_password: MasterPassword, salt: bytes) -> None:
     assert key != key_another_salt
 
 
+def test_short_salt(master_password: MasterPassword) -> None:
+    short_salt = b"q" * (MINIMAL_SALT_LENGTH - 1)
+    with pytest.raises(ValueError):
+        master_password.create_credentials(short_salt)
+    with pytest.raises(ValueError):
+        master_password.compare(PasswordCredentials(b"test_hash", short_salt))
+    with pytest.raises(ValueError):
+        master_password.derive_key(short_salt)
+
+
 @pytest.fixture
 def encryption_key(master_password: MasterPassword, salt: bytes) -> bytes:
     return master_password.derive_key(salt)
@@ -111,9 +133,21 @@ def test_entry_invalid_data(encryption_key: bytes) -> None:
         entry.decrypt(encryption_key)
 
 
-def test_entry_empty_values(encryption_key: bytes) -> None:
-    entry = EntryPassword()
+def test_entry_empty_values() -> None:
     with pytest.raises(ValueError):
-        entry.encrypt(encryption_key)
+        EntryPassword()
+
+
+def test_entry_both_values() -> None:
     with pytest.raises(ValueError):
-        entry.decrypt(encryption_key)
+        EntryPassword(unencrypted="secret", encrypted=b"encrypted_secret")
+
+
+def test_entry_encrypt_without_value(encryption_key: bytes) -> None:
+    with pytest.raises(ValueError):
+        EntryPassword(encrypted=b"other_value_specified").encrypt(encryption_key)
+
+
+def test_entry_decrypt_without_value(encryption_key: bytes) -> None:
+    with pytest.raises(ValueError):
+        EntryPassword(unencrypted="other_value_specified").decrypt(encryption_key)
