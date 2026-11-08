@@ -86,7 +86,7 @@ class EntryPassword:
 
     def __post_init__(self) -> None:
         if (self.encrypted is None) == (self.unencrypted is None):
-            raise ValueError("Only one argument can be specified")
+            raise ValueError("Exactly one of arguments must be specified")
 
     def encrypt(self, encryption_key: bytes) -> bytes:
         if self.unencrypted is None:
