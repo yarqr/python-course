@@ -46,7 +46,7 @@ class PasswordCredentials:
     salt: bytes
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class MasterPassword:
     original_value: str
 
@@ -79,7 +79,7 @@ class MasterPassword:
         return base64.urlsafe_b64encode(self._derive_hash(salt, SaltTag.ENCRYPTION))
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass(frozen=True, repr=False, kw_only=True)
 class EntryPassword:
     unencrypted: str | None = None
     encrypted: bytes | None = None
