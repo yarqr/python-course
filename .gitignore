@@ -3,3 +3,7 @@ __pycache__
 
 # Pycharm
 .idea
+
+# Tests
+.coverage
+htmlcov

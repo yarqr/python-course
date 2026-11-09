@@ -35,4 +35,4 @@ jobs:
         run: uv run mypy --strict .
 
       - name: Tests (pytest)
-        run: uv run pytest
+        run: uv run pytest --cov=src --cov-report=term-missing
