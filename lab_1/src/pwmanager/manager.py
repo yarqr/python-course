@@ -107,7 +107,7 @@ class PasswordManager:
 
     def delete_entry(self, name: str) -> None:
         if name not in self.list_entries():
-            raise EntryNotFoundError("Entry with this name not found")
+            raise EntryNotFoundError(f"Entry with name {name} not found")
         self._entries.pop(name)
         self._persist()
 
