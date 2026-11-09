@@ -49,9 +49,6 @@ def test_init_master_correct(manager: PasswordManager, storage_path: Path) -> No
     assert data["hash"]
 
 
-# TODO: test load
-
-
 def test_unlock_correct(manager: PasswordManager) -> None:
     # necessary test: 1
     assert manager.unlock(MASTER_PASSWORD)
