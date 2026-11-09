@@ -69,7 +69,8 @@ class PasswordManager:
         self._load()
         master = MasterPassword(password)
         if master.compare(PasswordCredentials(self._hash, self._salt)):
-            self._key = master.derive_key(self._salt)
+            if not self._key:
+                self._key = master.derive_key(self._salt)
             return True
         return False
 
@@ -101,7 +102,7 @@ class PasswordManager:
                 "login": data["login"],
                 "password": entry_password.decrypt(self._key),
             }
-        except (ValueError, KeyError, TypeError, InvalidToken) as e:
+        except InvalidToken as e:
             raise FileCorruptedError(f"Cannot decrypt entry with name {name}") from e
 
     def delete_entry(self, name: str) -> None:
@@ -125,6 +126,12 @@ class PasswordManager:
             self._salt = bytes.fromhex(data["salt"])
             self._hash = bytes.fromhex(data["hash"])
             self._entries = data["entries"]
+            if not isinstance(self._entries, dict):
+                raise FileCorruptedError("Entries is not a dictionary")
+            for entry in self._entries.values():
+                if not isinstance(entry["login"], str):
+                    raise FileCorruptedError("Entry login must be str")
+                bytes.fromhex(entry["password"])
         except FileNotFoundError as e:
             raise NotInitializedError("First initialize the master password") from e
         except (ValueError, KeyError, TypeError) as e:
