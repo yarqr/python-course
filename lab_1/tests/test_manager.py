@@ -162,3 +162,15 @@ def test_load_corrupted_file(
 
     with pytest.raises(FileCorruptedError):
         manager.unlock(MASTER_PASSWORD)
+
+
+def test_passwords_not_stored_raw_in_file(
+    unlocked_manager: PasswordManager, storage_path: Path
+) -> None:
+    # necessary test: 5
+    unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
+    raw = storage_path.read_text()
+    assert MASTER_PASSWORD not in raw
+    assert MASTER_PASSWORD.encode().hex() not in raw
+    assert ENTRY_PASSWORD not in raw
+    assert ENTRY_PASSWORD.encode().hex() not in raw
