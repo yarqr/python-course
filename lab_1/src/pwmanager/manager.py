@@ -1,3 +1,5 @@
+"""Менеджер хранилища паролей."""
+
 import json
 from pathlib import Path
 from typing import TypedDict
@@ -10,46 +12,67 @@ DEFAULT_PATH = Path.home() / ".pwmanager" / "vault.json"
 
 
 class StorageError(Exception):
+    """Базовое исключение хранилища."""
+
     pass
 
 
 class AlreadyInitializedError(StorageError):
+    """Хранилище уже инициализировано."""
+
     pass
 
 
 class NotInitializedError(StorageError):
+    """Хранилище не инициализировано."""
+
     pass
 
 
 class FileCorruptedError(StorageError):
+    """Файл хранилища повреждён."""
+
     pass
 
 
 class MasterPasswordInvalidError(StorageError):
+    """Неверный мастер-пароль."""
+
     pass
 
 
 class EntryAlreadyExistsError(StorageError):
+    """Запись уже существует."""
+
     pass
 
 
 class EntryNotFoundError(StorageError):
+    """Запись не найдена."""
+
     pass
 
 
 class EntryData(TypedDict):
+    """Запись хранилища."""
+
     login: str
     password: str
 
 
 class JsonData(TypedDict):
+    """Данные хранилища в исходном формате."""
+
     salt: str
     hash: str
     entries: dict[str, EntryData]
 
 
 class PasswordManager:
+    """Менеджер паролей."""
+
     def __init__(self, path: Path | None = None) -> None:
+        """Создание менеджера."""
         self.path = path or DEFAULT_PATH
         self._salt: bytes = b""
         self._hash: bytes = b""
@@ -57,6 +80,7 @@ class PasswordManager:
         self._key: bytes = b""
 
     def init_master(self, password: str) -> None:
+        """Создание хранилища и сохранение проверочных данных."""
         if self.path.exists():
             raise AlreadyInitializedError("Master password already set")
         master = MasterPassword(password)
@@ -66,6 +90,7 @@ class PasswordManager:
         self._persist()
 
     def unlock(self, password: str) -> bool:
+        """Проверка мастер-пароля и генерация ключа шифрования."""
         self._load()
         master = MasterPassword(password)
         if master.compare(PasswordCredentials(self._hash, self._salt)):
@@ -75,6 +100,7 @@ class PasswordManager:
         return False
 
     def add_entry(self, name: str, login: str, pwd: str) -> None:
+        """Добавление записи с зашифрованным паролем."""
         if name in self.list_entries():
             raise EntryAlreadyExistsError("Entry with this name already exists")
         password = EntryPassword(unencrypted=pwd)
@@ -85,9 +111,11 @@ class PasswordManager:
         self._persist()
 
     def list_entries(self) -> list[str]:
+        """Названия записей без данных."""
         return list(self._entries.keys())
 
     def get_entry(self, name: str, master_password: str) -> EntryData:
+        """Получение и расшифровка данных записи."""
         if not self.unlock(master_password):
             # исходя из тз, нужен новый параметр - master_password:
             # get_entry(name) -> login/pwd
@@ -106,12 +134,14 @@ class PasswordManager:
             raise FileCorruptedError(f"Cannot decrypt entry with name {name}") from e
 
     def delete_entry(self, name: str) -> None:
+        """Удаление записи и её данных."""
         if name not in self.list_entries():
             raise EntryNotFoundError(f"Entry with name {name} not found")
         self._entries.pop(name)
         self._persist()
 
     def _persist(self) -> None:
+        """Сохранение данных в файл хранилища."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         data: JsonData = {
             "salt": self._salt.hex(),
@@ -121,6 +151,7 @@ class PasswordManager:
         self.path.write_text(json.dumps(data))
 
     def _load(self) -> None:
+        """Выгрузка данных из файла хранилища."""
         try:
             data: JsonData = json.loads(self.path.read_text())
             self._salt = bytes.fromhex(data["salt"])

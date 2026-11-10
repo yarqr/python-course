@@ -32,5 +32,5 @@ strict = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "S"]
+select = ["E", "F", "I", "UP", "B", "S", "D"]
 ignore = ["S101"]

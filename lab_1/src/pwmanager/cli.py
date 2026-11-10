@@ -1,3 +1,5 @@
+"""Консольный интерфейс менеджера паролей."""
+
 import argparse
 from getpass import getpass
 
@@ -59,6 +61,7 @@ ENTRY_NOT_FOUND_ERR_TEXT = "Ошибка: записи с таким назва�
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Создание парсера аргументов командной строки."""
     parser = argparse.ArgumentParser("PasswordManager")
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -72,10 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 class PasswordService:
+    """Команды для работы с записями."""
+
     def __init__(self, manager: PasswordManager) -> None:
+        """Привязка к разблокированному менеджеру."""
         self.manager = manager
 
     def add(self) -> None:
+        """Запрос данных и добавление записи."""
         name = input(ENTRY_NAME_INPUT_TEXT).strip()
         if not name:
             print(ENTRY_NAME_EMPTY_ERR_TEXT)
@@ -96,6 +103,7 @@ class PasswordService:
             print(ENTRY_ALREADY_EXISTS_ERR_TEXT)
 
     def list(self) -> None:
+        """Вывод названий всех записей."""
         data = self.manager.list_entries()
         if not data:
             print(LIST_ENTRIES_EMPTY_TEXT)
@@ -105,6 +113,7 @@ class PasswordService:
                 print(ENTRY_NAME_TEXT.format(name))
 
     def get(self) -> None:
+        """Показать данные записи после подтверждения мастер-паролем."""
         name = input(ENTRY_NAME_INPUT_TEXT).strip()
         if not name:
             print(ENTRY_NAME_EMPTY_ERR_TEXT)
@@ -123,6 +132,7 @@ class PasswordService:
             print(ENTRY_NOT_FOUND_ERR_TEXT)
 
     def delete(self) -> None:
+        """Запрос названия записи и её последующее удаление."""
         name = input(ENTRY_NAME_INPUT_TEXT).strip()
         if not name:
             print(ENTRY_NAME_EMPTY_ERR_TEXT)
@@ -136,10 +146,14 @@ class PasswordService:
 
 
 class StorageService:
+    """Общие команды для работы с менеджером паролей."""
+
     def __init__(self, manager: PasswordManager) -> None:
+        """Привязка к менеджеру паролей."""
         self.manager = manager
 
     def init(self) -> int:
+        """Создание хранилища по мастер-паролю с его подтверждением."""
         pw = getpass(MP_CREATE_INPUT_TEXT)
         pw_confirm = getpass(MP_CONFIRM_INPUT_TEXT)
         if not pw:
@@ -161,6 +175,7 @@ class StorageService:
             return EXIT_FAIL
 
     def unlock(self) -> int:
+        """Проверка мастер-пароля и запуск меню управления хранилищем записей."""
         pw = getpass(MP_INPUT_TEXT)
         if not pw:
             print(MP_EMPTY_ERR_TEXT)
@@ -190,6 +205,7 @@ class StorageService:
 
     @staticmethod
     def generate(length: int | None) -> int:
+        """Генерация и вывод надёжного пароля."""
         if length is None:
             password = generate_password()
         else:
@@ -204,6 +220,7 @@ class StorageService:
 
 
 def run() -> int:
+    """Выполнение общих команд менеджера паролей."""
     parser = build_parser()
     args = parser.parse_args()
 
@@ -228,6 +245,7 @@ def run() -> int:
 
 
 def main() -> int:
+    """Запуск программы."""
     try:
         return run()
     except KeyboardInterrupt:

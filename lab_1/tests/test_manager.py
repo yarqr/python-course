@@ -1,3 +1,5 @@
+"""Тесты менеджера паролей."""
+
 import json
 from pathlib import Path
 
@@ -25,23 +27,29 @@ SALT_AND_HASH = f'{{"salt": "{"00" * MINIMAL_SALT_LENGTH}", "hash": "00", '
 
 @pytest.fixture
 def storage_path(tmp_path: Path) -> Path:
+    """Путь к файлу хранилища во временном каталоге."""
     return tmp_path / ".pwmanager" / "vault.json"
 
 
 @pytest.fixture
 def manager(storage_path: Path) -> PasswordManager:
+    """Менеджер для уже инициализированного хранилища."""
     pw_manager = PasswordManager(storage_path)
     pw_manager.init_master(MASTER_PASSWORD)
     return PasswordManager(storage_path)
 
 
 def test_init_master_one_time_initialization(manager: PasswordManager) -> None:
-    # necessary test: 2
+    """Повторная инициализация хранилища запрещена.
+
+    Необходимый из ТЗ тест №2.
+    """
     with pytest.raises(AlreadyInitializedError):
         manager.init_master(MASTER_PASSWORD)
 
 
 def test_init_master_correct(manager: PasswordManager, storage_path: Path) -> None:
+    """После инициализации файл содержит соль и хэш."""
     assert storage_path.exists()
 
     data = json.loads(storage_path.read_text())
@@ -50,19 +58,26 @@ def test_init_master_correct(manager: PasswordManager, storage_path: Path) -> No
 
 
 def test_unlock_correct(manager: PasswordManager) -> None:
-    # necessary test: 1
+    """Верный мастер-пароль открывает хранилище, неверный — нет.
+
+    Необходимый из ТЗ тест №1.
+    """
     assert manager.unlock(MASTER_PASSWORD)
     assert not manager.unlock(INCORRECT_MASTER_PASSWORD)
 
 
 @pytest.fixture
 def unlocked_manager(manager: PasswordManager) -> PasswordManager:
+    """Менеджер, для которого выполнен unlock."""
     manager.unlock(MASTER_PASSWORD)
     return manager
 
 
 def test_chain_add_list_get(unlocked_manager: PasswordManager) -> None:
-    # necessary test: 3
+    """Добавленная запись видна в списке и читается с мастер-паролем.
+
+    Необходимый из ТЗ тест №3.
+    """
     unlocked_manager.unlock(MASTER_PASSWORD)
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     assert ENTRY_NAME in unlocked_manager.list_entries()
@@ -73,17 +88,20 @@ def test_chain_add_list_get(unlocked_manager: PasswordManager) -> None:
 
 
 def test_add_entry_same_name(unlocked_manager: PasswordManager) -> None:
+    """Запись с повторяющимся названием не добавляется."""
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     with pytest.raises(EntryAlreadyExistsError):
         unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
 
 
 def test_get_entry_with_incorrect_master_password(manager: PasswordManager) -> None:
+    """Получение записи с неверным мастер-паролем запрещено."""
     with pytest.raises(MasterPasswordInvalidError):
         manager.get_entry(ENTRY_NAME, INCORRECT_MASTER_PASSWORD)
 
 
 def test_get_entry_incorrect_name(unlocked_manager: PasswordManager) -> None:
+    """Получение несуществующей записи вызывает ошибку."""
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     with pytest.raises(EntryNotFoundError):
         unlocked_manager.get_entry(INCORRECT_ENTRY_NAME, MASTER_PASSWORD)
@@ -92,6 +110,7 @@ def test_get_entry_incorrect_name(unlocked_manager: PasswordManager) -> None:
 def test_get_entry_incorrect_password_token(
     unlocked_manager: PasswordManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Не расшифровываемый пароль записи считается повреждением файла."""
     monkeypatch.setattr(EntryPassword, "encrypt", lambda self, key: b"invalid_token")
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
 
@@ -100,13 +119,17 @@ def test_get_entry_incorrect_password_token(
 
 
 def test_delete_unknown_entry(unlocked_manager: PasswordManager) -> None:
+    """Удаление несуществующей записи вызывает ошибку."""
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     with pytest.raises(EntryNotFoundError):
         unlocked_manager.delete_entry(INCORRECT_ENTRY_NAME)
 
 
 def test_delete_entry_correct(unlocked_manager: PasswordManager) -> None:
-    # necessary test: 4
+    """Удалённая запись пропадает из списка.
+
+    Необходимый из ТЗ тест №4.
+    """
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     assert ENTRY_NAME in unlocked_manager.list_entries()
 
@@ -115,6 +138,7 @@ def test_delete_entry_correct(unlocked_manager: PasswordManager) -> None:
 
 
 def test_persist_correct(unlocked_manager: PasswordManager, storage_path: Path) -> None:
+    """Записи сохраняются и читаются новым экземпляром менеджера."""
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
 
     restarted_manager = PasswordManager(storage_path)
@@ -126,6 +150,7 @@ def test_persist_correct(unlocked_manager: PasswordManager, storage_path: Path) 
 
 
 def test_load_without_initialization(storage_path: Path) -> None:
+    """Вход без инициализации вызывает NotInitializedError."""
     with pytest.raises(NotInitializedError):
         PasswordManager(storage_path).unlock(MASTER_PASSWORD)
 
@@ -155,6 +180,7 @@ def test_load_without_initialization(storage_path: Path) -> None:
 def test_load_corrupted_file(
     manager: PasswordManager, storage_path: Path, content: str
 ) -> None:
+    """Повреждённый файл хранилища вызывает FileCorruptedError."""
     storage_path.write_text(content)
 
     with pytest.raises(FileCorruptedError):
@@ -164,7 +190,10 @@ def test_load_corrupted_file(
 def test_passwords_not_stored_raw_in_file(
     unlocked_manager: PasswordManager, storage_path: Path
 ) -> None:
-    # necessary test: 5
+    """Мастер-пароль и пароль записи не хранятся в файле открыто.
+
+    Необходимый из ТЗ тест №5.
+    """
     unlocked_manager.add_entry(ENTRY_NAME, ENTRY_LOGIN, ENTRY_PASSWORD)
     raw = storage_path.read_text()
     assert MASTER_PASSWORD not in raw
