@@ -39,13 +39,17 @@ def manager(storage_path: Path) -> PasswordManager:
     return PasswordManager(storage_path)
 
 
-def test_init_master_one_time_initialization(manager: PasswordManager) -> None:
+def test_init_master_one_time_initialization(
+    manager: PasswordManager, storage_path: Path
+) -> None:
     """Повторная инициализация хранилища запрещена.
 
     Необходимый из ТЗ тест №2.
     """
+    original = storage_path.read_text()
     with pytest.raises(AlreadyInitializedError):
         manager.init_master(MASTER_PASSWORD)
+    assert storage_path.read_text() == original
 
 
 def test_init_master_correct(manager: PasswordManager, storage_path: Path) -> None:
